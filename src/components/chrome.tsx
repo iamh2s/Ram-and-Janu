@@ -1,24 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { gsap, ScrollTrigger } from "../lib/gsap";
 
-/* ════════════════════════════════════════════════════════════
-   CINEMATIC TAMIL WEDDING THEME
 
-   Palette:
-   Deep Navy     #100E1C
-   Plum          #291326
-   Deep Maroon   #4A1820
-   Crimson       #8E2630
-   Sunset Red    #C94B32
-   Warm Orange   #E8793B
-   Cream         #FFF0C7
-   Soft Gold     #E8C46A
-   ════════════════════════════════════════════════════════════ */
-
-
-/* ────────────────────────────────────────────────────────────
-   Film grain + cinematic vignette
-   ──────────────────────────────────────────────────────────── */
 
 export function GrainOverlay() {
   return (
@@ -96,8 +79,7 @@ export function DustParticles({
                 height: `${size}px`,
                 "--dur": `${9 + ((i * 3.1) % 9)}s`,
                 "--del": `${-((i * 1.7) % 12)}s`,
-                "--op":
-                  0.25 + ((i * 13.7) % 35) / 100,
+                "--op": 0.25 + ((i * 13.7) % 35) / 100,
               } as React.CSSProperties
             }
           />
@@ -163,7 +145,7 @@ export function ProgressBar() {
 /* ════════════════════════════════════════════════════════════
    PRELOADER
 
-   Cinematic Tamil poster inspired intro
+   Touch / Click to Open
    ════════════════════════════════════════════════════════════ */
 
 export function Preloader({
@@ -172,12 +154,13 @@ export function Preloader({
   onDone: () => void;
 }) {
   const root = useRef<HTMLDivElement>(null);
+
   const [leaving, setLeaving] = useState(false);
+  const [isPressed, setIsPressed] = useState(false);
 
-
-  /* ══════════════════════════════════════════════════════════
+  /* ────────────────────────────────────────────────────────────
      INTRO ANIMATION
-     ══════════════════════════════════════════════════════════ */
+  ──────────────────────────────────────────────────────────── */
 
   useEffect(() => {
     document.documentElement.style.overflow = "hidden";
@@ -186,7 +169,6 @@ export function Preloader({
       const tl = gsap.timeline();
 
       /* Horizontal cinematic line */
-
       tl.fromTo(
         ".pl-line",
         {
@@ -201,7 +183,6 @@ export function Preloader({
       )
 
         /* Small heading */
-
         .fromTo(
           ".pl-word",
           {
@@ -221,7 +202,6 @@ export function Preloader({
         )
 
         /* Poster glow */
-
         .fromTo(
           ".pl-glow",
           {
@@ -238,7 +218,6 @@ export function Preloader({
         )
 
         /* Decorative ornament */
-
         .fromTo(
           ".pl-ornament",
           {
@@ -254,14 +233,17 @@ export function Preloader({
             ease: "power3.out",
           },
           0.5
-        )
-
-        /* Leave */
-
-        .add(
-          () => setLeaving(true),
-          2.6
         );
+
+      /*
+       * IMPORTANT:
+       * No automatic exit here.
+       *
+       * Previously the preloader automatically called:
+       * setLeaving(true)
+       *
+       * Now it waits for user interaction.
+       */
     }, root);
 
     return () => {
@@ -271,38 +253,118 @@ export function Preloader({
   }, []);
 
 
-  /* ══════════════════════════════════════════════════════════
+  /* ────────────────────────────────────────────────────────────
+     OPEN ON TOUCH / CLICK
+  ──────────────────────────────────────────────────────────── */
+
+  const handleOpen = () => {
+    if (leaving) return;
+
+    setIsPressed(true);
+    setLeaving(true);
+  };
+
+
+  /* ────────────────────────────────────────────────────────────
+     KEYBOARD SUPPORT
+  ──────────────────────────────────────────────────────────── */
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key === "Enter" ||
+        event.key === " " ||
+        event.key === "ArrowDown"
+      ) {
+        event.preventDefault();
+        handleOpen();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [leaving]);
+
+
+  /* ────────────────────────────────────────────────────────────
      EXIT ANIMATION
-     ══════════════════════════════════════════════════════════ */
+  ──────────────────────────────────────────────────────────── */
 
   useEffect(() => {
     if (!leaving) return;
 
     const ctx = gsap.context(() => {
-      gsap.to(root.current, {
-        autoAlpha: 0,
-        duration: 1,
-        ease: "power2.inOut",
+      const tl = gsap.timeline();
 
-        onComplete: () => {
-          document.documentElement.style.overflow = "";
-          onDone();
-        },
-      });
+      /* Slight zoom before opening */
+      tl.to(root.current, {
+        scale: 1.035,
+        duration: 0.65,
+        ease: "power2.inOut",
+      })
+
+        /* Fade cinematic layers */
+        .to(
+          ".pl-content",
+          {
+            autoAlpha: 0,
+            y: -25,
+            duration: 0.45,
+            ease: "power2.in",
+          },
+          0
+        )
+
+        /* Glow expands */
+        .to(
+          ".pl-glow",
+          {
+            scale: 1.5,
+            opacity: 0,
+            duration: 0.7,
+            ease: "power2.in",
+          },
+          0
+        )
+
+        /* Final fade */
+        .to(
+          root.current,
+          {
+            autoAlpha: 0,
+            duration: 0.8,
+            ease: "power2.inOut",
+
+            onComplete: () => {
+              document.documentElement.style.overflow = "";
+              onDone();
+            },
+          },
+          0.2
+        );
     }, root);
 
     return () => ctx.revert();
   }, [leaving, onDone]);
 
 
-  /* ══════════════════════════════════════════════════════════
+  /* ────────────────────────────────────────────────────────────
      UI
-     ══════════════════════════════════════════════════════════ */
+  ──────────────────────────────────────────────────────────── */
 
   return (
     <div
       ref={root}
-      className="
+      role="button"
+      tabIndex={0}
+      aria-label="Touch to open wedding invitation"
+      onClick={handleOpen}
+      onTouchStart={() => setIsPressed(true)}
+      onTouchEnd={handleOpen}
+      className={`
         fixed
         inset-0
         z-[100]
@@ -311,12 +373,18 @@ export function Preloader({
         justify-center
         overflow-hidden
         bg-[#100E1C]
-      "
+        select-none
+        touch-manipulation
+        cursor-pointer
+        transition-transform
+        duration-300
+        ${isPressed ? "scale-[0.995]" : ""}
+      `}
     >
 
-      {/* ═══════════════════════════════════════════════════
+      {/* ═══════════════════════════════════════════════════════
           BASE GRADIENT
-          ═══════════════════════════════════════════════════ */}
+      ═══════════════════════════════════════════════════════ */}
 
       <div
         className="
@@ -335,9 +403,9 @@ export function Preloader({
       />
 
 
-      {/* ═══════════════════════════════════════════════════
+      {/* ═══════════════════════════════════════════════════════
           WARM SUNSET LIGHT
-          ═══════════════════════════════════════════════════ */}
+      ═══════════════════════════════════════════════════════ */}
 
       <div
         className="
@@ -360,9 +428,9 @@ export function Preloader({
       />
 
 
-      {/* ═══════════════════════════════════════════════════
+      {/* ═══════════════════════════════════════════════════════
           RED / ORANGE LIGHT
-          ═══════════════════════════════════════════════════ */}
+      ═══════════════════════════════════════════════════════ */}
 
       <div
         className="
@@ -393,9 +461,9 @@ export function Preloader({
       />
 
 
-      {/* ═══════════════════════════════════════════════════
+      {/* ═══════════════════════════════════════════════════════
           DARK VIGNETTE
-          ═══════════════════════════════════════════════════ */}
+      ═══════════════════════════════════════════════════════ */}
 
       <div
         className="
@@ -412,9 +480,9 @@ export function Preloader({
       />
 
 
-      {/* ═══════════════════════════════════════════════════
+      {/* ═══════════════════════════════════════════════════════
           OUTER FRAME
-          ═══════════════════════════════════════════════════ */}
+      ═══════════════════════════════════════════════════════ */}
 
       <div
         className="
@@ -441,9 +509,9 @@ export function Preloader({
       />
 
 
-      {/* ═══════════════════════════════════════════════════
+      {/* ═══════════════════════════════════════════════════════
           CORNER ORNAMENTS
-          ═══════════════════════════════════════════════════ */}
+      ═══════════════════════════════════════════════════════ */}
 
       <div
         className="
@@ -510,12 +578,13 @@ export function Preloader({
       />
 
 
-      {/* ═══════════════════════════════════════════════════
+      {/* ═══════════════════════════════════════════════════════
           MAIN CONTENT
-          ═══════════════════════════════════════════════════ */}
+      ═══════════════════════════════════════════════════════ */}
 
       <div
         className="
+          pl-content
           relative
           z-10
           flex
@@ -528,9 +597,9 @@ export function Preloader({
         "
       >
 
-        {/* ═════════════════════════════════════════════════
+        {/* ═════════════════════════════════════════════════════
             TOP ORNAMENT
-            ═════════════════════════════════════════════════ */}
+        ═════════════════════════════════════════════════════ */}
 
         <div
           className="
@@ -577,9 +646,9 @@ export function Preloader({
         </div>
 
 
-        {/* ═════════════════════════════════════════════════
+        {/* ═════════════════════════════════════════════════════
             SMALL TITLE
-            ═════════════════════════════════════════════════ */}
+        ═════════════════════════════════════════════════════ */}
 
         <p
           className="
@@ -600,9 +669,9 @@ export function Preloader({
         </p>
 
 
-        {/* ═════════════════════════════════════════════════
+        {/* ═════════════════════════════════════════════════════
             GOLD DIVIDER
-            ═════════════════════════════════════════════════ */}
+        ═════════════════════════════════════════════════════ */}
 
         <div
           className="
@@ -617,8 +686,8 @@ export function Preloader({
             sm:max-w-[280px]
           "
         >
-          {/* faint line */}
 
+          {/* faint line */}
           <span
             className="
               absolute
@@ -630,7 +699,6 @@ export function Preloader({
           />
 
           {/* animated line */}
-
           <div
             className="
               pl-line
@@ -648,7 +716,6 @@ export function Preloader({
           />
 
           {/* center diamond */}
-
           <span
             className="
               absolute
@@ -666,9 +733,9 @@ export function Preloader({
         </div>
 
 
-        {/* ═════════════════════════════════════════════════
+        {/* ═════════════════════════════════════════════════════
             MAIN TITLE
-            ═════════════════════════════════════════════════ */}
+        ═════════════════════════════════════════════════════ */}
 
         <p
           className="
@@ -689,9 +756,9 @@ export function Preloader({
         </p>
 
 
-        {/* ═════════════════════════════════════════════════
+        {/* ═════════════════════════════════════════════════════
             SUBTITLE
-            ═════════════════════════════════════════════════ */}
+        ═════════════════════════════════════════════════════ */}
 
         <p
           className="
@@ -711,9 +778,9 @@ export function Preloader({
         </p>
 
 
-        {/* ═════════════════════════════════════════════════
+        {/* ═════════════════════════════════════════════════════
             SMALL GOLD ORNAMENT
-            ═════════════════════════════════════════════════ */}
+        ═════════════════════════════════════════════════════ */}
 
         <div
           className="
@@ -733,12 +800,107 @@ export function Preloader({
           <span className="h-px w-8 bg-[#F1C96A]/40" />
         </div>
 
+
+        {/* ═════════════════════════════════════════════════════
+            TOUCH TO OPEN
+        ═════════════════════════════════════════════════════ */}
+
+        <div
+          className="
+            pl-word
+            mt-12
+            flex
+            flex-col
+            items-center
+            gap-3
+            sm:mt-14
+          "
+        >
+
+          {/* Finger / Touch icon */}
+          <div
+            className="
+              touch-pulse
+              flex
+              h-12
+              w-12
+              items-center
+              justify-center
+              rounded-full
+              border
+              border-[#F1C96A]/40
+              bg-[#F1C96A]/5
+            "
+          >
+            <svg
+              width="21"
+              height="21"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="text-[#F1C96A]"
+            >
+              <path
+                d="M12 11V5.5C12 4.67 12.67 4 13.5 4C14.33 4 15 4.67 15 5.5V11"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+
+              <path
+                d="M15 10V6.5C15 5.67 15.67 5 16.5 5C17.33 5 18 5.67 18 6.5V12"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+
+              <path
+                d="M18 10V8.5C18 7.67 18.67 7 19.5 7C20.33 7 21 7.67 21 8.5V14.5C21 18.09 18.09 21 14.5 21H12.5C10.29 21 8.18 20.01 6.78 18.3L4.5 15.5C3.95 14.82 4.05 13.83 4.73 13.28C5.41 12.73 6.4 12.83 6.95 13.51L9 16V11"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+
+
+          {/* Text */}
+          <p
+            className="
+              font-tamil
+              text-[9px]
+              font-medium
+              uppercase
+              tracking-[0.42em]
+              text-[#F1C96A]
+              sm:text-[10px]
+              sm:tracking-[0.5em]
+            "
+          >
+            Touch to open
+          </p>
+
+
+          {/* Small instruction */}
+          <p
+            className="
+              text-[8px]
+              tracking-[0.18em]
+              text-[#FFF0C7]/35
+            "
+          >
+            Tap anywhere to begin
+          </p>
+
+        </div>
+
       </div>
 
 
-      {/* ═══════════════════════════════════════════════════
+      {/* ═══════════════════════════════════════════════════════
           BOTTOM REEL INFORMATION
-          ═══════════════════════════════════════════════════ */}
+      ═══════════════════════════════════════════════════════ */}
 
       <div
         className="
@@ -770,9 +932,9 @@ export function Preloader({
       </div>
 
 
-      {/* ═══════════════════════════════════════════════════
-          FILM STYLE SIDE MARKS
-          ═══════════════════════════════════════════════════ */}
+      {/* ═══════════════════════════════════════════════════════
+          FILM STYLE SIDE MARK
+      ═══════════════════════════════════════════════════════ */}
 
       <div
         className="
@@ -791,9 +953,9 @@ export function Preloader({
       />
 
 
-      {/* ═══════════════════════════════════════════════════
-          SUBTLE TOP / BOTTOM GLOW
-          ═══════════════════════════════════════════════════ */}
+      {/* ═══════════════════════════════════════════════════════
+          SUBTLE TOP GLOW
+      ═══════════════════════════════════════════════════════ */}
 
       <div
         className="
@@ -808,6 +970,11 @@ export function Preloader({
         "
       />
 
+
+      {/* ═══════════════════════════════════════════════════════
+          SUBTLE BOTTOM GLOW
+      ═══════════════════════════════════════════════════════ */}
+
       <div
         className="
           pointer-events-none
@@ -820,6 +987,33 @@ export function Preloader({
           to-transparent
         "
       />
+
+
+      {/* ═══════════════════════════════════════════════════════
+          INLINE ANIMATION STYLES
+      ═══════════════════════════════════════════════════════ */}
+
+      <style>{`
+        .touch-pulse {
+          animation: touchPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes touchPulse {
+          0%,
+          100% {
+            transform: scale(1);
+            box-shadow:
+              0 0 0 0 rgba(241, 201, 106, 0.12);
+          }
+
+          50% {
+            transform: scale(1.08);
+            box-shadow:
+              0 0 0 12px rgba(241, 201, 106, 0);
+          }
+        }
+      `}</style>
+
     </div>
   );
 }
