@@ -291,3 +291,168 @@ img {
     animation: none !important;
   }
 }
+/* =========================================================
+   MUSIC TOGGLE
+========================================================= */
+
+.music-toggle {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+
+  z-index: 99999;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  min-width: 52px;
+  min-height: 52px;
+
+  padding: 10px 16px;
+
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  border-radius: 999px;
+
+  background: rgba(12, 35, 24, 0.88);
+
+  color: #f5d77a;
+
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  cursor: pointer;
+
+  transition:
+    transform 0.25s ease,
+    background 0.25s ease,
+    border-color 0.25s ease;
+
+  -webkit-tap-highlight-color: transparent;
+}
+
+.music-toggle:hover {
+  transform: translateY(-2px);
+
+  background: rgba(18, 55, 36, 0.95);
+
+  border-color: rgba(212, 175, 55, 0.9);
+}
+
+.music-toggle:active {
+  transform: scale(0.95);
+}
+
+.music-icon {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  width: 28px;
+  height: 28px;
+
+  font-size: 22px;
+
+  color: #f5d77a;
+}
+
+.music-icon.playing {
+  animation: musicPulse 1.2s ease-in-out infinite;
+}
+
+.music-label {
+  font-size: 12px;
+
+  font-weight: 600;
+
+  letter-spacing: 0.08em;
+
+  white-space: nowrap;
+}
+
+/* Music animation */
+
+@keyframes musicPulse {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.18);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 768px) {
+  .music-toggle {
+    right: 16px;
+    bottom: 16px;
+
+    width: 52px;
+    min-width: 52px;
+
+    height: 52px;
+    min-height: 52px;
+
+    padding: 0;
+
+    justify-content: center;
+  }
+
+  .music-label {
+    display: none;
+  }
+
+  .music-icon {
+    font-size: 23px;
+  }
+}
+
+/* =========================================================
+   SMALL PHONES
+========================================================= */
+
+@media (max-width: 380px) {
+  .music-toggle {
+    right: 12px;
+    bottom: 12px;
+
+    width: 48px;
+    min-width: 48px;
+
+    height: 48px;
+    min-height: 48px;
+  }
+
+  .music-icon {
+    font-size: 21px;
+  }
+}
+
+/* =========================================================
+   SAFE AREA FOR IPHONE
+========================================================= */
+
+@supports (padding: env(safe-area-inset-bottom)) {
+  .music-toggle {
+    bottom: calc(
+      16px + env(safe-area-inset-bottom)
+    );
+  }
+
+  @media (max-width: 768px) {
+    .music-toggle {
+      bottom: calc(
+        12px + env(safe-area-inset-bottom)
+      );
+    }
+  }
+}

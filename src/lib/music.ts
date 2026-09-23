@@ -1,98 +1,206 @@
 class MusicEngine {
   private audio: HTMLAudioElement | null = null;
 
-  private subs: ((playing: boolean) => void)[] = [];
+  private subscribers: ((playing: boolean) => void)[] = [];
 
-  private unlockListenersAttached = false;
+  private initialized = false;
   private unlocked = false;
+  private unlocking = false;
+  private listenersAttached = false;
 
   playing = false;
 
-  onChange(cb: (playing: boolean) => void) {
-    this.subs.push(cb);
+  /**
+   * Subscribe to music state changes
+   */
+  onChange(callback: (playing: boolean) => void) {
+    this.subscribers.push(callback);
 
-    // Immediately give the subscriber the current state
-    cb(this.playing);
+    // Immediately provide current state
+    callback(this.playing);
 
     return () => {
-      this.subs = this.subs.filter((item) => item !== cb);
+      this.subscribers = this.subscribers.filter(
+        (item) => item !== callback
+      );
     };
   }
 
+  /**
+   * Notify subscribers
+   */
   private emit() {
-    this.subs.forEach((cb) => cb(this.playing));
+    this.subscribers.forEach((callback) => {
+      callback(this.playing);
+    });
   }
 
+  /**
+   * Initialize audio
+   */
   private init() {
-    if (this.audio) return;
+    if (this.initialized && this.audio) {
+      return;
+    }
 
-    this.audio = new Audio("/music/music.mp3");
+    this.audio = new Audio();
+
+    this.audio.src = "/music/music.mp3";
 
     this.audio.loop = true;
     this.audio.preload = "auto";
     this.audio.volume = 0.65;
 
+    /*
+     * Mobile browser support
+     */
+    this.audio.setAttribute("playsinline", "");
+    this.audio.setAttribute("webkit-playsinline", "");
+
+    /*
+     * Audio started
+     */
     this.audio.addEventListener("play", () => {
       this.playing = true;
+      this.unlocked = true;
+
+      this.removeUnlockListeners();
+
       this.emit();
     });
 
+    /*
+     * Audio actually playing
+     */
+    this.audio.addEventListener("playing", () => {
+      this.playing = true;
+      this.unlocked = true;
+
+      this.removeUnlockListeners();
+
+      this.emit();
+    });
+
+    /*
+     * Audio paused
+     */
     this.audio.addEventListener("pause", () => {
       this.playing = false;
       this.emit();
     });
 
+    /*
+     * Audio ended
+     */
     this.audio.addEventListener("ended", () => {
       this.playing = false;
       this.emit();
     });
 
-    this.audio.addEventListener("error", (event) => {
-      console.error("Music loading error:", event);
+    /*
+     * Audio error
+     */
+    this.audio.addEventListener("error", () => {
+      console.error(
+        "Music could not be loaded.",
+        this.audio?.error
+      );
+
       this.playing = false;
+
       this.emit();
     });
+
+    this.initialized = true;
   }
 
-  async start() {
+  /**
+   * Start music
+   */
+  async start(): Promise<boolean> {
     this.init();
 
-    if (!this.audio) return false;
+    if (!this.audio) {
+      return false;
+    }
+
+    /*
+     * Prevent multiple play() calls at the same time
+     */
+    if (this.unlocking) {
+      return false;
+    }
+
+    /*
+     * Already playing
+     */
+    if (!this.audio.paused) {
+      this.playing = true;
+      this.unlocked = true;
+
+      this.emit();
+
+      return true;
+    }
+
+    this.unlocking = true;
 
     try {
+      /*
+       * Make sure the audio element is loaded
+       */
+      if (this.audio.readyState === 0) {
+        this.audio.load();
+      }
+
       await this.audio.play();
 
+      this.playing = true;
       this.unlocked = true;
+
       this.removeUnlockListeners();
 
-      this.playing = true;
       this.emit();
 
       return true;
     } catch (error) {
+      /*
+       * Browser blocked autoplay.
+       */
       console.warn(
-        "Music autoplay was blocked. Waiting for user interaction.",
-        error
+        "Music autoplay was blocked. Waiting for user interaction."
       );
 
       this.playing = false;
+
       this.emit();
 
       this.attachUnlockListeners();
 
       return false;
+    } finally {
+      this.unlocking = false;
     }
   }
 
+  /**
+   * Pause music
+   */
   pause() {
-    if (!this.audio) return;
+    if (!this.audio) {
+      return;
+    }
 
     this.audio.pause();
 
     this.playing = false;
+
     this.emit();
   }
 
+  /**
+   * Toggle music
+   */
   async toggle() {
     if (this.playing) {
       this.pause();
@@ -101,60 +209,134 @@ class MusicEngine {
     }
   }
 
+  /**
+   * Change volume
+   */
   setVolume(volume: number) {
     this.init();
 
-    if (!this.audio) return;
+    if (!this.audio) {
+      return;
+    }
 
-    this.audio.volume = Math.max(0, Math.min(1, volume));
+    const safeVolume = Math.max(
+      0,
+      Math.min(1, volume)
+    );
+
+    this.audio.volume = safeVolume;
   }
 
   /**
-   * Try to start music immediately.
-   * If browser blocks autoplay, automatically wait
-   * for the first user interaction anywhere on the page.
+   * Try autoplay when website loads
    */
   async autoStart() {
     this.init();
 
-    if (!this.audio || this.unlocked) return;
-
-    const started = await this.start();
-
-    if (!started) {
-      this.attachUnlockListeners();
+    if (this.unlocked) {
+      return;
     }
+
+    await this.start();
   }
 
   /**
-   * Listen for the first interaction that can unlock audio.
+   * Attach listeners for the first user interaction
    */
   private attachUnlockListeners() {
-    if (this.unlockListenersAttached || this.unlocked) return;
+    if (this.listenersAttached || this.unlocked) {
+      return;
+    }
 
-    this.unlockListenersAttached = true;
+    this.listenersAttached = true;
 
     const unlock = () => {
+      if (this.unlocked) {
+        return;
+      }
+
       void this.start();
     };
 
-    window.addEventListener("pointerdown", unlock, {
-      once: true,
-      passive: true,
-    });
+    /*
+     * Touch / pointer
+     */
+    window.addEventListener(
+      "pointerdown",
+      unlock,
+      {
+        once: true,
+        passive: true,
+      }
+    );
 
-    window.addEventListener("touchstart", unlock, {
-      once: true,
-      passive: true,
-    });
+    /*
+     * Mobile fallback
+     */
+    window.addEventListener(
+      "touchstart",
+      unlock,
+      {
+        once: true,
+        passive: true,
+      }
+    );
 
-    window.addEventListener("keydown", unlock, {
-      once: true,
-    });
+    /*
+     * Normal mouse click
+     */
+    window.addEventListener(
+      "click",
+      unlock,
+      {
+        once: true,
+      }
+    );
+
+    /*
+     * Scrolling
+     */
+    window.addEventListener(
+      "scroll",
+      unlock,
+      {
+        once: true,
+        passive: true,
+      }
+    );
+
+    /*
+     * Mouse wheel
+     */
+    window.addEventListener(
+      "wheel",
+      unlock,
+      {
+        once: true,
+        passive: true,
+      }
+    );
+
+    /*
+     * Keyboard
+     */
+    window.addEventListener(
+      "keydown",
+      unlock,
+      {
+        once: true,
+      }
+    );
   }
 
+  /**
+   * Remove unlock listeners
+   *
+   * The listeners use once:true, so the browser removes
+   * them after the first event. This only resets our flag.
+   */
   private removeUnlockListeners() {
-    this.unlockListenersAttached = false;
+    this.listenersAttached = false;
   }
 }
 
